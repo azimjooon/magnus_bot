@@ -1,4 +1,4 @@
-import { CommandContext, GrammyError } from "grammy";
+import { CommandContext, GrammyError, InlineKeyboard } from "grammy";
 import { getUserMappings } from "../../utils/supabase";
 import { startRegistrationFlow } from "../../utils/registration";
 import { mainMenu, platformSelectKeyboard } from "../../utils/keyboards";
@@ -23,8 +23,38 @@ export async function handleStart(ctx: CommandContext<any>) {
 
     // Check if user is already registered
     const existingMappings = await getUserMappings(telegramUsername);
-    
-    if (existingMappings && (existingMappings.chess || existingMappings.lichess)) {
+    const isPrivate = ctx.chat?.type === "private";
+    const isRegistered = !!(existingMappings && (existingMappings.chess || existingMappings.lichess));
+
+    // Registration requires typing usernames, which only works in a private chat.
+    // In groups: registered users get the menu, unregistered users are sent to the bot's DM.
+    if (!isPrivate) {
+      if (isRegistered) {
+        await ctx.reply(
+          `👋 @${telegramUsername}, менюро истифода баред / use the menu below:`,
+          { reply_markup: mainMenu() }
+        );
+        return;
+      }
+
+      const botUsername = ctx.me?.username;
+      const goToBot = new InlineKeyboard();
+      if (botUsername) {
+        goToBot.url("🤖 Ба бот равед / Open the bot", `https://t.me/${botUsername}?start=register`);
+      }
+
+      await ctx.reply(
+        `⚠️ @${telegramUsername}, сабти ном танҳо дар чати шахсии бот имконпазир аст.\n` +
+        `⚠️ Registration is only possible in a private chat with the bot.\n\n` +
+        `Ба бот гузаред ва он ҷо /start-ро пахш кунед:\n` +
+        `Go to the bot and press /start there:` +
+        (botUsername ? "" : `\n\nПаёми шахсӣ ба бот нависед / Send a private message to the bot.`),
+        botUsername ? { reply_markup: goToBot } : undefined
+      );
+      return;
+    }
+
+    if (isRegistered && existingMappings) {
       let platformsText = "";
       if (existingMappings.chess) platformsText += `♟️ Chess.com: ${existingMappings.chess}\n`;
       if (existingMappings.lichess) platformsText += `♟️ Lichess: ${existingMappings.lichess}\n`;
