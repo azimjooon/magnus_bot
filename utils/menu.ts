@@ -5,6 +5,7 @@ import { renderStandings, renderRecentChampions } from "../commands/standings";
 import { renderStatsFor } from "../commands/stats";
 import { renderRatingsForTC, RatingTC } from "./ratings";
 import { renderHeadToHead } from "./headToHead";
+import { buildInvite, INVITE_TIME_CONTROLS } from "./invite";
 import { getAllUserMappings } from "./userMap";
 import { handleRegistrationInput } from "./registration";
 import { mainMenu, backToMenu, ratingsMenu, MENU_TEXT } from "./keyboards";
@@ -27,13 +28,17 @@ async function showLoading(ctx: Context): Promise<void> {
   }
 }
 
-function compareUserKeyboard(usernames: string[], firstIndex?: number): InlineKeyboard {
+// Two-column keyboard of registered users; callbacks carry the user's index in the sorted list
+function userSelectKeyboard(
+  usernames: string[],
+  toCallback: (index: number) => string,
+  excludeName?: string
+): InlineKeyboard {
   const kb = new InlineKeyboard();
   let buttonsInRow = 0;
   usernames.forEach((name, i) => {
-    if (firstIndex !== undefined && i === firstIndex) return;
-    const callback = firstIndex === undefined ? `cmp1:${i}` : `cmp2:${firstIndex}:${i}`;
-    kb.text(`@${name}`, callback);
+    if (excludeName !== undefined && name === excludeName) return;
+    kb.text(`@${name}`, toCallback(i));
     buttonsInRow++;
     if (buttonsInRow === 2) {
       kb.row();
@@ -43,6 +48,14 @@ function compareUserKeyboard(usernames: string[], firstIndex?: number): InlineKe
   if (buttonsInRow > 0) kb.row();
   kb.text("⬅️ Menu", "menu");
   return kb;
+}
+
+function compareUserKeyboard(usernames: string[], firstIndex?: number): InlineKeyboard {
+  return userSelectKeyboard(
+    usernames,
+    firstIndex === undefined ? (i) => `cmp1:${i}` : (i) => `cmp2:${firstIndex}:${i}`,
+    firstIndex === undefined ? undefined : usernames[firstIndex]
+  );
 }
 
 async function sortedRegisteredUsers(): Promise<string[]> {
@@ -148,6 +161,86 @@ export async function handleMenuCallback(ctx: Context): Promise<void> {
       }
       await showLoading(ctx);
       await show(ctx, await renderHeadToHead(users[i], users[j]));
+      return;
+    }
+
+    // Game invite flow: pick opponent -> pick time control -> rated/casual -> post invite
+    if (data === "inv") {
+      const challenger = ctx.from?.username;
+      if (!challenger) {
+        await show(ctx, "❌ You need a Telegram username to send invites.");
+        return;
+      }
+      const users = await sortedRegisteredUsers();
+      const opponents = users.filter(u => u !== challenger);
+      if (opponents.length === 0) {
+        await show(ctx, "⚠️ No other registered players to invite.");
+        return;
+      }
+      await show(
+        ctx,
+        "🎯 Даъват / Send invite\n\nҲарифро интихоб кунед / Select your opponent:",
+        userSelectKeyboard(users, (i) => `inv1:${i}`, challenger)
+      );
+      return;
+    }
+
+    if (data.startsWith("inv1:")) {
+      const opponentIndex = parseInt(data.slice(5), 10);
+      const users = await sortedRegisteredUsers();
+      if (isNaN(opponentIndex) || !users[opponentIndex]) {
+        await show(ctx, "⚠️ Player list changed, please try again.", mainMenu());
+        return;
+      }
+      const kb = new InlineKeyboard();
+      INVITE_TIME_CONTROLS.forEach((tc, t) => kb.text(tc.label, `inv2:${opponentIndex}:${t}`));
+      kb.row().text("⬅️ Menu", "menu");
+      await show(
+        ctx,
+        `🎯 Invite for @${users[opponentIndex]}\n\nНазорати вақтро интихоб кунед / Select time control:`,
+        kb
+      );
+      return;
+    }
+
+    if (data.startsWith("inv2:")) {
+      const [opponentIndex, tcIndex] = data.slice(5).split(":").map(n => parseInt(n, 10));
+      const users = await sortedRegisteredUsers();
+      const tc = INVITE_TIME_CONTROLS[tcIndex];
+      if (isNaN(opponentIndex) || !users[opponentIndex] || !tc) {
+        await show(ctx, "⚠️ Something changed, please try again.", mainMenu());
+        return;
+      }
+      const kb = new InlineKeyboard()
+        .text("⭐ Rated", `inv3:${opponentIndex}:${tcIndex}:1`)
+        .text("🎲 Casual", `inv3:${opponentIndex}:${tcIndex}:0`).row()
+        .text("⬅️ Menu", "menu");
+      await show(
+        ctx,
+        `🎯 Invite for @${users[opponentIndex]} (${tc.label})\n\nНавъи бозӣ / Game type:`,
+        kb
+      );
+      return;
+    }
+
+    if (data.startsWith("inv3:")) {
+      const [opponentIndex, tcIndex, ratedFlag] = data.slice(5).split(":").map(n => parseInt(n, 10));
+      const challenger = ctx.from?.username;
+      const users = await sortedRegisteredUsers();
+      if (!challenger || isNaN(opponentIndex) || !users[opponentIndex] || !INVITE_TIME_CONTROLS[tcIndex]) {
+        await show(ctx, "⚠️ Something changed, please try again.", mainMenu());
+        return;
+      }
+      await showLoading(ctx);
+      const invite = await buildInvite(challenger, users[opponentIndex], tcIndex, ratedFlag === 1);
+      if (!invite) {
+        await show(ctx, `⚠️ Could not create an invite for @${users[opponentIndex]} — no platform accounts found or Lichess is unavailable.`);
+        return;
+      }
+      // Post the invite as a NEW message so the opponent gets a mention notification,
+      // then restore the menu in the original message
+      await ctx.reply(invite.text, { reply_markup: invite.keyboard });
+      await show(ctx, MENU_TEXT, mainMenu());
       return;
     }
 

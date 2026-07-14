@@ -12,7 +12,8 @@ export function mainMenu(): InlineKeyboard {
     .text("👑 Champions", "st:recent").row()
     .text("📊 My Stats", "stats:me")
     .text("⚔️ Compare", "cmp").row()
-    .text("📈 Ratings", "ratings");
+    .text("📈 Ratings", "ratings")
+    .text("🎯 Send Invite", "inv");
 }
 
 export function backToMenu(): InlineKeyboard {
