@@ -2,11 +2,8 @@
 import { Bot } from "grammy";
 import * as dotenv from "dotenv";
 import { handleStart } from "./commands/start";
-import { handleStats } from "./commands/stats";
-import { handleScore } from "./commands/score";
-import { handleZuri as handleTop } from "./commands/top";
-import { handleStandings } from "./commands/standings";
 import { handleRegistration, isUserInRegistrationFlow } from "./utils/registration";
+import { handleMenuCallback } from "./utils/menu";
 import { BotError, GrammyError, HttpError } from "grammy";
 
 dotenv.config();
@@ -16,11 +13,10 @@ if (!token) throw new Error("BOT_TOKEN is missing");
 
 export const bot = new Bot(token);
 
+// /start is the only command: it registers new users and opens the button menu.
+// Everything else is driven by inline keyboard callbacks.
 bot.command("start", handleStart);
-bot.command("stats", handleStats);
-bot.command("score", handleScore);
-bot.command("standings", handleStandings);
-bot.command("top", handleTop);
+bot.on("callback_query:data", handleMenuCallback);
 
 // Handle text messages for username registration only in private chats
 bot.on("message:text", async (ctx) => {

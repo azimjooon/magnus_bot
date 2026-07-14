@@ -1,6 +1,7 @@
 import { CommandContext, GrammyError } from "grammy";
 import { getUserMappings } from "../../utils/supabase";
 import { startRegistrationFlow } from "../../utils/registration";
+import { mainMenu, platformSelectKeyboard } from "../../utils/keyboards";
 
 export async function handleStart(ctx: CommandContext<any>) {
   try {
@@ -36,21 +37,17 @@ export async function handleStart(ctx: CommandContext<any>) {
           `You're registered on both platforms:\n` +
           `🎯 Telegram: @${telegramUsername}\n` +
           platformsText + "\n" +
-          `Фармонҳои дастрас / Available commands:\n` +
-          `📊 /stats - Омори шахмат / View your chess statistics\n` +
-          `🏆 /top - Рейтинг / See leaderboards\n` +
-          `🏆 /standings - Championship standings\n` +
-          `⚔️ /score @user1 @user2 - Муқоисаи бозигарон / Compare players\n\n` +
           `🏆 Daily Championship: Top 3 players earn points daily!\n` +
-          `Awards: 🥇300pts, 🥈200pts, 🥉100pts (need 3+ games)`
+          `Awards: 🥇300pts, 🥈200pts, 🥉100pts (need 3+ games)\n\n` +
+          `Менюро истифода баред / Use the menu below:`,
+          { reply_markup: mainMenu() }
         );
         return;
       }
-      
+
       // User has only one platform, offer to add the other
       const missingPlatform = existingMappings.chess ? 'Lichess' : 'Chess.com';
-      const missingPlatformNumber = existingMappings.chess ? '2' : '1';
-      
+
       await ctx.reply(
         `👋 Хуш омадед! / Welcome back!\n\n` +
         `Шумо аллакай сабт шудаед:\n` +
@@ -59,13 +56,11 @@ export async function handleStart(ctx: CommandContext<any>) {
         platformsText + "\n" +
         `➕ Оё мехоҳед ${missingPlatform}-ро низ илова кунед?\n` +
         `➕ Would you like to add ${missingPlatform} as well?\n\n` +
-        `Агар ҳа, рақами ${missingPlatformNumber}-ро интихоб кунед:\n` +
-        `If yes, select option ${missingPlatformNumber}:\n\n` +
-        `1️⃣ Chess.com\n` +
-        `2️⃣ Lichess\n\n` +
-        `Ё "не/no" барои бекор кардан / Or "no" to cancel`
+        `Интихоб кунед ё "Cancel" пахш кунед:\n` +
+        `Select a platform or press "Cancel":`,
+        { reply_markup: platformSelectKeyboard() }
       );
-      
+
       // Set user to platform selection state with existing data
       startRegistrationFlow(userId);
       return;
@@ -73,17 +68,14 @@ export async function handleStart(ctx: CommandContext<any>) {
 
     // Start registration flow for new users
     startRegistrationFlow(userId);
-    
+
     await ctx.reply(
       "👋 Хуш омадед ба Magnus Bot! / Welcome to Magnus Bot!\n\n" +
       "🎯 Биёед ҳисоби шахматии худро сабт кунем.\n" +
       "🎯 Let's register your chess account.\n\n" +
       "Кадом платформаро интихоб мекунед?\n" +
-      "Which platform would you like to choose?\n\n" +
-      "1️⃣ Chess.com\n" +
-      "2️⃣ Lichess\n\n" +
-      "Рақами интихобро ворид кунед (1 ё 2):\n" +
-      "Enter your choice number (1 or 2):"
+      "Which platform would you like to choose?",
+      { reply_markup: platformSelectKeyboard() }
     );
   } catch (err) {
     const errorContext = {

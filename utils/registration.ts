@@ -1,6 +1,7 @@
 import { Context } from "grammy";
 import { saveUserMapping } from "../utils/supabase";
 import { verifyChessComUser, verifyLichessUser } from "../utils/chessApis";
+import { mainMenu, platformSelectKeyboard, yesNoKeyboard } from "../utils/keyboards";
 
 // Store user states for registration flow
 const userStates = new Map<number, { 
@@ -10,14 +11,19 @@ const userStates = new Map<number, {
 }>();
 
 export async function handleRegistration(ctx: Context): Promise<void> {
-  const userId = ctx.from?.id;
-  if (!userId) return;
-
   const text = ctx.message?.text?.trim();
   if (!text) return;
 
+  await handleRegistrationInput(ctx, text);
+}
+
+// Shared entry point for both typed answers and inline-button callbacks (reg:* callback data)
+export async function handleRegistrationInput(ctx: Context, text: string): Promise<void> {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
   const userState = userStates.get(userId);
-  
+
   if (userState?.step === 'waiting_for_platform') {
     await handlePlatformSelection(ctx, text);
   } else if (userState?.step === 'waiting_for_chess_username') {
@@ -77,11 +83,9 @@ async function handlePlatformSelection(ctx: Context, selection: string): Promise
     );
   } else {
     await ctx.reply(
-      "❌ Интихоби нодуруст. Лутфан 1 ё 2-ро интихоб кунед:\n" +
-      "❌ Invalid choice. Please select 1 or 2:\n\n" +
-      "1️⃣ Chess.com\n" +
-      "2️⃣ Lichess\n\n" +
-      "Ё \"не/no\" барои бекор кардан / Or \"no\" to cancel"
+      "❌ Интихоби нодуруст. Лутфан интихоб кунед:\n" +
+      "❌ Invalid choice. Please select a platform:",
+      { reply_markup: platformSelectKeyboard() }
     );
   }
 }
@@ -127,24 +131,20 @@ async function handleChessUsernameInput(ctx: Context, chessUsername: string): Pr
     "✅ Муваффақият! Шумо сабт шудед! / Success! You are registered!\n\n" +
     `🎯 Telegram: @${telegramUsername}\n` +
     `♟️ Chess.com: ${chessUsername}\n` +
-    `${lichessUsername ? `♟️ Lichess: ${lichessUsername}\n` : ''}` +
-    "\nҲозир шумо метавонед:\n" +
-    "Now you can use:\n" +
-    "📊 /stats - Омори шахмат / View your chess statistics\n" +
-    "🏆 /top - Рейтинг / See leaderboards\n" +
-    "⚔️ /score @user1 @user2 - Муқоисаи бозигарон / Compare players"
+    `${lichessUsername ? `♟️ Lichess: ${lichessUsername}\n` : ''}`,
+    lichessUsername ? { reply_markup: mainMenu() } : undefined
   );
 
   // Ask if they want to add the other platform
   if (!lichessUsername) {
-    userStates.set(userId, { 
+    userStates.set(userId, {
       step: 'waiting_for_additional_platform',
-      chessUsername 
+      chessUsername
     });
     await ctx.reply(
       "➕ Оё шумо мехоҳед Lichess-ро низ илова кунед?\n" +
-      "➕ Would you like to also add Lichess?\n\n" +
-      "Ҷавоб диҳед: ҳа/бале/yes ё не/нест/no"
+      "➕ Would you like to also add Lichess?",
+      { reply_markup: yesNoKeyboard() }
     );
   }
 }
@@ -190,24 +190,20 @@ async function handleLichessUsernameInput(ctx: Context, lichessUsername: string)
     "✅ Муваффақият! Шумо сабт шудед! / Success! You are registered!\n\n" +
     `🎯 Telegram: @${telegramUsername}\n` +
     `${chessUsername ? `♟️ Chess.com: ${chessUsername}\n` : ''}` +
-    `♟️ Lichess: ${lichessUsername}\n\n` +
-    "Ҳозир шумо метавонед:\n" +
-    "Now you can use:\n" +
-    "📊 /stats - Омори шахмат / View your chess statistics\n" +
-    "🏆 /top - Рейтинг / See leaderboards\n" +
-    "⚔️ /score @user1 @user2 - Муқоисаи бозигарон / Compare players"
+    `♟️ Lichess: ${lichessUsername}`,
+    chessUsername ? { reply_markup: mainMenu() } : undefined
   );
 
   // Ask if they want to add the other platform
   if (!chessUsername) {
-    userStates.set(userId, { 
+    userStates.set(userId, {
       step: 'waiting_for_additional_platform',
-      lichessUsername 
+      lichessUsername
     });
     await ctx.reply(
       "➕ Оё шумо мехоҳед Chess.com-ро низ илова кунед?\n" +
-      "➕ Would you like to also add Chess.com?\n\n" +
-      "Ҷавоб диҳед: ҳа/бале/yes ё не/нест/no"
+      "➕ Would you like to also add Chess.com?",
+      { reply_markup: yesNoKeyboard() }
     );
   }
 }
@@ -249,12 +245,13 @@ async function handleAdditionalPlatformSelection(ctx: Context, response: string)
     userStates.delete(userId);
     await ctx.reply(
       "✅ Хуб! Шумо ҳар вақт метавонед платформаи дигарро бо /start илова кунед.\n" +
-      "✅ Great! You can always add the other platform later with /start."
+      "✅ Great! You can always add the other platform later with /start.",
+      { reply_markup: mainMenu() }
     );
   } else {
     await ctx.reply(
-      "❌ Лутфан ҳа/бале/yes ё не/нест/no ҷавоб диҳед:\n" +
-      "❌ Please answer yes or no:"
+      "❌ Лутфан интихоб кунед / Please answer:",
+      { reply_markup: yesNoKeyboard() }
     );
   }
 }
