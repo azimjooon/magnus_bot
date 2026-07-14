@@ -3,6 +3,9 @@
   "functions": {
     "api/daily-championship.ts": {
       "maxDuration": 300
+    },
+    "api/webhook.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
