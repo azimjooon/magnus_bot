@@ -3,7 +3,7 @@ import { Context } from "grammy";
 import { renderTop, TopOption } from "../commands/top";
 import { renderStandings, renderRecentChampions } from "../commands/standings";
 import { renderStatsFor } from "../commands/stats";
-import { renderRatingsTable, RatingPlatform, RatingTC } from "./ratings";
+import { renderRatingsForTC, RatingTC } from "./ratings";
 import { renderHeadToHead } from "./headToHead";
 import { getAllUserMappings } from "./userMap";
 import { handleRegistrationInput } from "./registration";
@@ -102,14 +102,14 @@ export async function handleMenuCallback(ctx: Context): Promise<void> {
     }
 
     if (data === "ratings") {
-      await show(ctx, "📈 Ratings / Рейтингҳо\n\nИнтихоб кунед / Choose platform and time control:", ratingsMenu());
+      await show(ctx, "📈 Ratings / Рейтингҳо\n\nИнтихоб кунед / Choose a time control:", ratingsMenu());
       return;
     }
 
     if (data.startsWith("rt:")) {
-      const [, platform, tc] = data.split(":");
+      const tc = data.slice(3) as RatingTC;
       await showLoading(ctx);
-      const text = await renderRatingsTable(platform as RatingPlatform, tc as RatingTC);
+      const text = await renderRatingsForTC(tc);
       await show(ctx, text, ratingsMenu());
       return;
     }

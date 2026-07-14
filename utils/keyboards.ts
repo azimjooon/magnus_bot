@@ -21,12 +21,9 @@ export function backToMenu(): InlineKeyboard {
 
 export function ratingsMenu(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("Chess.com ⚡", "rt:chesscom:blitz")
-    .text("Chess.com 🏃", "rt:chesscom:rapid")
-    .text("Chess.com 🔫", "rt:chesscom:bullet").row()
-    .text("Lichess ⚡", "rt:lichess:blitz")
-    .text("Lichess 🏃", "rt:lichess:rapid")
-    .text("Lichess 🔫", "rt:lichess:bullet").row()
+    .text("🔫 Bullet", "rt:bullet")
+    .text("⚡ Blitz", "rt:blitz")
+    .text("🏃 Rapid", "rt:rapid").row()
     .text("⬅️ Menu", "menu");
 }
 

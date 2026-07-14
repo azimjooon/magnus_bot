@@ -190,7 +190,7 @@ function formatChampionshipMessage(championData: any, leaderboard: PlayerStats[]
 
   message += `Congratulations to all players! 🎊\n`;
   message += `Total qualifying players: ${leaderboard.length}\n\n`;
-  message += `Use /standings to see overall championship standings!`;
+  message += `Press /start and open Standings in the menu to see overall championship standings!`;
 
   return message;
 }

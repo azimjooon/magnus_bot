@@ -1,14 +1,11 @@
-// Live rating leaderboards per platform and time control (for the Ratings menu buttons)
+// Live rating leaderboards per time control (for the Ratings menu buttons).
+// One screen per time control: Chess.com top list first, then Lichess separately.
 import { getAllUserMappings } from './userMap';
 import { fetchChessComStats, fetchLichessStats } from './chessApis';
 
-export type RatingPlatform = 'chesscom' | 'lichess';
 export type RatingTC = 'blitz' | 'rapid' | 'bullet';
 
-const PLATFORM_LABELS: Record<RatingPlatform, string> = {
-  chesscom: 'Chess.com',
-  lichess: 'Lichess'
-};
+const TOP_LIMIT = 50;
 
 const TC_LABELS: Record<RatingTC, string> = {
   blitz: '⚡ Blitz',
@@ -25,49 +22,62 @@ function getPositionEmoji(position: number): string {
   }
 }
 
-export async function renderRatingsTable(platform: RatingPlatform, tc: RatingTC): Promise<string> {
-  const userMap = await getAllUserMappings();
+interface RatedPlayer {
+  tgUsername: string;
+  rating: number;
+}
 
-  const entries = Object.entries(userMap)
-    .map(([tgUsername, mappings]) => ({
-      tgUsername,
-      platformUsername: platform === 'chesscom' ? mappings.chess : mappings.lichess
-    }))
-    .filter(e => e.platformUsername);
+function formatRanking(players: RatedPlayer[]): string[] {
+  return players
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, TOP_LIMIT)
+    .map((p, i) => `${getPositionEmoji(i + 1)} ${p.tgUsername} — ${p.rating}`);
+}
+
+export async function renderRatingsForTC(tc: RatingTC): Promise<string> {
+  const userMap = await getAllUserMappings();
+  const entries = Object.entries(userMap);
 
   if (entries.length === 0) {
-    return `📈 ${PLATFORM_LABELS[platform]} ${TC_LABELS[tc]}\n\nNo registered ${PLATFORM_LABELS[platform]} accounts yet.`;
+    return `📈 ${TC_LABELS[tc]} Ratings\n\nNo registered users yet.`;
   }
 
-  const ratings = await Promise.all(entries.map(async e => {
-    let rating: number | null = null;
+  const chesscom: RatedPlayer[] = [];
+  const lichess: RatedPlayer[] = [];
+
+  await Promise.all(entries.map(async ([tgUsername, mappings]) => {
     try {
-      if (platform === 'chesscom') {
-        const stats = await fetchChessComStats(e.platformUsername!);
-        const key = `chess_${tc}` as 'chess_blitz' | 'chess_rapid' | 'chess_bullet';
-        rating = stats?.[key]?.last?.rating ?? null;
-      } else {
-        const stats = await fetchLichessStats(e.platformUsername!);
-        rating = stats?.perfs?.[tc]?.rating ?? null;
-      }
+      const [ccStats, liStats] = await Promise.all([
+        mappings.chess ? fetchChessComStats(mappings.chess) : Promise.resolve(null),
+        mappings.lichess ? fetchLichessStats(mappings.lichess) : Promise.resolve(null)
+      ]);
+
+      const key = `chess_${tc}` as 'chess_blitz' | 'chess_rapid' | 'chess_bullet';
+      const ccRating = ccStats?.[key]?.last?.rating;
+      if (ccRating != null) chesscom.push({ tgUsername, rating: ccRating });
+
+      const liRating = liStats?.perfs?.[tc]?.rating;
+      if (liRating != null) lichess.push({ tgUsername, rating: liRating });
     } catch (error) {
-      console.error(`Error fetching ${platform} rating for ${e.tgUsername}:`, error);
+      console.error(`Error fetching ratings for ${tgUsername}:`, error);
     }
-    return { tgUsername: e.tgUsername, rating };
   }));
 
-  const ranked = ratings
-    .filter((r): r is { tgUsername: string; rating: number } => r.rating !== null)
-    .sort((a, b) => b.rating - a.rating);
+  const lines = [`📈 ${TC_LABELS[tc]} Ratings (Top ${TOP_LIMIT})`, ""];
 
-  const lines = [`📈 ${PLATFORM_LABELS[platform]} ${TC_LABELS[tc]} Ratings`, ""];
-
-  if (ranked.length === 0) {
-    lines.push(`No ${tc} ratings found for registered players.`);
+  lines.push(`♟ Chess.com:`);
+  if (chesscom.length === 0) {
+    lines.push(`No ${tc} ratings found.`);
   } else {
-    ranked.forEach((r, i) => {
-      lines.push(`${getPositionEmoji(i + 1)} ${r.tgUsername} — ${r.rating}`);
-    });
+    lines.push(...formatRanking(chesscom));
+  }
+
+  lines.push("");
+  lines.push(`♞ Lichess:`);
+  if (lichess.length === 0) {
+    lines.push(`No ${tc} ratings found.`);
+  } else {
+    lines.push(...formatRanking(lichess));
   }
 
   return lines.join('\n');
