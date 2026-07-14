@@ -11,9 +11,13 @@ export interface InviteTimeControl {
 
 export const INVITE_TIME_CONTROLS: InviteTimeControl[] = [
   { label: "🔫 1+0", limit: 60, increment: 0 },
+  { label: "🔫 1+1", limit: 60, increment: 1 },
   { label: "⚡ 3+0", limit: 180, increment: 0 },
+  { label: "⚡ 3+2", limit: 180, increment: 2 },
   { label: "⚡ 5+0", limit: 300, increment: 0 },
-  { label: "🏃 10+0", limit: 600, increment: 0 }
+  { label: "⚡ 5+3", limit: 300, increment: 3 },
+  { label: "🏃 10+0", limit: 600, increment: 0 },
+  { label: "🏃 10+5", limit: 600, increment: 5 }
 ];
 
 async function createLichessOpenChallenge(

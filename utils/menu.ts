@@ -193,8 +193,11 @@ export async function handleMenuCallback(ctx: Context): Promise<void> {
         return;
       }
       const kb = new InlineKeyboard();
-      INVITE_TIME_CONTROLS.forEach((tc, t) => kb.text(tc.label, `inv2:${opponentIndex}:${t}`));
-      kb.row().text("⬅️ Menu", "menu");
+      INVITE_TIME_CONTROLS.forEach((tc, t) => {
+        kb.text(tc.label, `inv2:${opponentIndex}:${t}`);
+        if ((t + 1) % 4 === 0) kb.row();
+      });
+      kb.text("⬅️ Menu", "menu");
       await show(
         ctx,
         `🎯 Invite for @${users[opponentIndex]}\n\nНазорати вақтро интихоб кунед / Select time control:`,
